@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>警来帮 · 失物招领工作台（演示）</title>
+<style>
+  :root{
+    --blue:#2147a3; --blue-d:#18326f; --ink:#1f2733; --sub:#6b7480;
+    --line:#e6e9ef; --bg:#f3f5f9; --card:#fff; --green:#27ae60;
+    --orange:#e67e22; --red:#c0392b; --grey:#8a93a0;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;font-family:"Microsoft YaHei","PingFang SC",system-ui,sans-serif;background:var(--bg);color:var(--ink);font-size:14px}
+  header{background:linear-gradient(120deg,var(--blue-d),var(--blue));color:#fff;padding:14px 22px;display:flex;align-items:center;gap:14px;box-shadow:0 2px 8px rgba(24,50,111,.25)}
+  header .logo{width:38px;height:38px;border-radius:9px;background:rgba(255,255,255,.16);display:flex;align-items:center;justify-content:center;font-size:20px}
+  header h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.5px}
+  header .sub{font-size:12px;opacity:.82;margin-top:2px}
+  header .spacer{flex:1}
+  header .mode{font-size:12px;background:rgba(255,255,255,.15);padding:5px 12px;border-radius:20px}
+  header button{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.3);padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px}
+  header button:hover{background:rgba(255,255,255,.28)}
+  .wrap{padding:18px 22px;max-width:1500px;margin:0 auto}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1.25fr;gap:16px}
+  @media(max-width:1100px){.grid3{grid-template-columns:1fr}}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 16px;box-shadow:0 1px 3px rgba(20,40,90,.05)}
+  .card-title{font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:3px}
+  .card-sub{font-size:12px;color:var(--sub);margin-bottom:12px}
+  .empty{color:var(--grey);font-size:12px;text-align:center;padding:18px 0}
+  table.list{width:100%;border-collapse:collapse;font-size:12.5px}
+  table.list th{text-align:left;color:var(--sub);font-weight:600;padding:7px 6px;border-bottom:1px solid var(--line);white-space:nowrap}
+  table.list td{padding:8px 6px;border-bottom:1px solid #f0f2f6;vertical-align:top}
+  table.list tr.clickable{cursor:pointer}
+  table.list tr.clickable:hover{background:#f5f8ff}
+  .mono{font-family:Consolas,Menlo,monospace;font-size:12px}
+  .badge{display:inline-block;color:#fff;font-size:11px;padding:2px 8px;border-radius:11px;white-space:nowrap}
+  .muted{color:var(--grey);font-size:11.5px}
+  form.fg{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  form.fg .full{grid-column:1 / -1}
+  form.fg label{display:block;font-size:12px}
+  form.fg .lab{color:var(--sub);margin-bottom:4px}
+  form.fg input,form.fg select,form.fg textarea{width:100%;padding:7px 9px;border:1px solid #d4d9e2;border-radius:7px;font-size:13px;font-family:inherit}
+  form.fg input:focus,form.fg select:focus,form.fg textarea:focus{outline:none;border-color:var(--blue)}
+  form.fg textarea{resize:vertical;min-height:48px}
+  .btn-primary{background:var(--blue);color:#fff;border:none;padding:9px 14px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:600;width:100%}
+  .btn-primary:hover{background:var(--blue-d)}
+  .btn-sm{border:1px solid #c8cfdb;background:#fff;color:var(--ink);padding:4px 9px;border-radius:6px;cursor:pointer;font-size:12px;margin:2px 3px 2px 0;white-space:nowrap}
+  .btn-sm:hover{border-color:var(--blue);color:var(--blue)}
+  .btn-sm.primary{background:var(--blue);border-color:var(--blue);color:#fff}
+  .btn-sm.primary:hover{background:var(--blue-d)}
+  .btn-sm.danger:hover{border-color:var(--red);color:var(--red)}
+  .chips{display:flex;gap:6px;flex-wrap:wrap}
+  .chip{font-size:11.5px;padding:3px 10px;border-radius:14px;background:#eef1f6;color:var(--sub);cursor:pointer;user-select:none}
+  .chip.active{background:var(--blue);color:#fff}
+  .section2{margin-top:16px}
+  .hint{font-size:11.5px;color:var(--grey);font-weight:400}
+  .toast{position:fixed;left:50%;bottom:34px;transform:translateX(-50%) translateY(20px);background:#222c3a;color:#fff;padding:11px 20px;border-radius:9px;font-size:13px;opacity:0;pointer-events:none;transition:.25s;z-index:99;max-width:80vw;box-shadow:0 6px 24px rgba(0,0,0,.3)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+  .toast.ok{background:#1e7e4f}.toast.err{background:#a8322a}
+  /* drawer */
+  .mask{position:fixed;inset:0;background:rgba(15,25,45,.45);display:none;z-index:50}
+  .mask.show{display:block}
+  .drawer{position:fixed;top:0;right:0;height:100%;width:420px;max-width:92vw;background:#fff;z-index:51;transform:translateX(100%);transition:.25s;display:flex;flex-direction:column;box-shadow:-8px 0 30px rgba(0,0,0,.2)}
+  .drawer.show{transform:translateX(0)}
+  .drawer h3{margin:0;padding:17px 20px;border-bottom:1px solid var(--line);font-size:16px}
+  .drawer-body{padding:16px 20px;overflow:auto;flex:1}
+  .drawer .close{position:absolute;top:14px;right:16px;cursor:pointer;color:var(--sub);font-size:20px;background:none;border:none}
+  .kv{display:grid;grid-template-columns:104px 1fr;gap:9px 12px;font-size:13px}
+  .kv .k{color:var(--sub)}
+  .tl{margin-top:8px;border-left:2px solid #dfe5ef;padding-left:14px}
+  .tl .t{position:relative;padding:4px 0 12px;font-size:12.5px}
+  .tl .t::before{content:"";position:absolute;left:-19px;top:7px;width:9px;height:9px;border-radius:50%;background:var(--blue)}
+  .tl .t time{color:var(--grey);font-size:11px;margin-left:6px}
+  .photobox{margin-top:12px;width:100%;height:170px;border-radius:10px;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-size:15px;font-weight:700;letter-spacing:1px}
+  .photobox small{font-weight:400;opacity:.85;margin-top:4px}
+  .claim{font-size:11.5px;color:var(--sub);margin-top:3px;line-height:1.5}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🛡️</div>
+  <div>
+    <h1>警来帮 · 失物招领工作台</h1>
+    <div class="sub">地铁警务便民服务 · 民警/客服处置端（演示数据，浏览器本地存储）</div>
+  </div>
+  <div class="spacer"></div>
+  <span class="mode" id="staffName">值班：王警官 · 安吉站客服中心</span>
+  <button id="resetBtn">重置演示数据</button>
+</header>
+
+<div class="wrap">
+  <div class="grid3">
+    <!-- ① 待匹配追踪码 -->
+    <div class="card">
+      <div class="card-title">待匹配 · 追踪码</div>
+      <div class="card-sub">乘客大屏报丢失后，等待民警入库匹配（点行可回填到录入表单）</div>
+      <div id="lf-pending"><div class="empty">加载中…</div></div>
+    </div>
+
+    <!-- ② 录入捡获失物 -->
+    <div class="card">
+      <div class="card-title">录入捡获失物</div>
+      <div class="card-sub">提交即自动反向匹配 pending 追踪码</div>
+      <form id="lf-form" class="fg">
+        <label class="full"><div class="lab">物品类型 *</div>
+          <select name="item_type" required>
+            <option value="">请选择</option>
+            <option>手机</option><option>钱包</option><option>背包</option>
+            <option>行李箱</option><option>钥匙</option><option>文件袋</option>
+            <option>雨伞</option><option>其它</option>
+          </select>
+        </label>
+        <label><div class="lab">颜色 / 特征</div><input name="color" placeholder="例如：黑色背包"/></label>
+        <label><div class="lab">线路</div>
+          <select name="line"><option value="">无</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
+        </label>
+        <label><div class="lab">站点 *</div><input name="station" required placeholder="例如：安吉站"/></label>
+        <label><div class="lab">捡获时间</div><input name="found_time" placeholder="例如：今天 08:30"/></label>
+        <label class="full"><div class="lab">描述</div><textarea name="description" placeholder="拾获地点细节、保管位置、独有特征"></textarea></label>
+        <label class="full"><div class="lab">保管民警 / 客服</div><input name="custodian" placeholder="例如：安吉站客服中心 王警官"/></label>
+        <label class="full"><div class="lab">实物照片（可选 · 便于以图识图）</div><input name="photo" type="file" accept="image/*"/></label>
+        <div class="full"><button class="btn-primary" type="submit">提交 + 自动匹配</button></div>
+      </form>
+    </div>
+
+    <!-- ③ 失物台账 -->
+    <div class="card">
+      <div class="card-title">
+        <span>失物台账</span>
+        <span class="chips" id="lf-chips">
+          <span class="chip active" data-lfstatus="">全部</span>
+          <span class="chip" data-lfstatus="in_stock">在库</span>
+          <span class="chip" data-lfstatus="matched">已命中</span>
+          <span class="chip" data-lfstatus="claimed">已领取</span>
+        </span>
+      </div>
+      <div class="card-sub">命中后凭乘客 6 位取件码核销发放</div>
+      <div id="lf-list"><div class="empty">加载中…</div></div>
+    </div>
+  </div>
+
+  <!-- ④ 待确认上交单 -->
+  <div class="card section2">
+    <div class="card-title">
+      <span>待确认上交单（乘客拾获 HD）</span>
+      <span class="hint">乘客在客服中心出示上交码后，点「凭码确认」自动入失物台账</span>
+    </div>
+    <div id="lf-handovers"><div class="empty">加载中…</div></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+<div class="mask" id="mask"></div>
+<div class="drawer" id="drawer">
+  <button class="close" id="drawerClose">×</button>
+  <h3 id="drawerTitle">详情</h3>
+  <div class="drawer-body" id="drawerBody"></div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+  var KEY = "jlb_staff_lostfound_demo_v1";
+
+  var ITEM_STATUS = {in_stock:{label:"在库",color:"#2147a3"},matched:{label:"已命中",color:"#e67e22"},claimed:{label:"已领取",color:"#27ae60"}};
+  var REPORT_STATUS = {pending:{label:"待匹配",color:"#2147a3"},matched:{label:"已找到疑似",color:"#e67e22"},picked_up:{label:"已领取",color:"#27ae60"},closed:{label:"已关闭",color:"#8a93a0"}};
+  var HAND_STATUS = {pending:{label:"待交付",color:"#2147a3"},confirmed_at_desk:{label:"已到客服",color:"#e67e22"},matched:{label:"已找到失主",color:"#27ae60"},closed:{label:"已结案",color:"#8a93a0"},cancelled:{label:"已取消",color:"#8a93a0"}};
+
+  function rid(prefix){ return prefix + "-" + Math.random().toString(36).slice(2,8).toUpperCase().replace(/O|0/g,"X"); }
+  function code6(){ return String(Math.floor(100000+Math.random()*900000)); }
+  function now(){ var d=new Date(),p=function(n){return (n<10?"0":"")+n;}; return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes()); }
+  function rel(ts){ if(!ts)return ""; var diff=((Date.now()-new Date(ts.replace(" ","T")).getTime())/1000); if(isNaN(diff))return ts; if(diff<60)return"刚刚"; if(diff<3600)return Math.floor(diff/60)+"分钟前"; if(diff<86400)return Math.floor(diff/3600)+"小时前"; return Math.floor(diff/86400)+"天前"; }
+  function esc(s){ return String(s==null?"":s).replace(/[&<>"']/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];}); }
+
+  function seed(){
+    return {
+      seq: 103,
+      reports:[
+        {id:"LF-QT39RR",item_type:"手机",color:"黑色",line:"2",station:"万象城站",lost_time:"今天 08:10",contact:"139****2211",status:"pending",pickup_code:"",claim_decision:"",claim_note:"",matched_item_id:null,created_at:offsetMin(-35)},
+        {id:"LF-AA10K2",item_type:"钱包",color:"红色",line:"1",station:"火车站",lost_time:"今天 07:40",contact:"138****6677",status:"pending",pickup_code:"",claim_decision:"",claim_note:"",matched_item_id:null,created_at:offsetMin(-80)},
+        {id:"LF-BN77UA",item_type:"文件袋",color:"牛皮纸袋",line:"4",station:"东盟商务区站",lost_time:"昨天 18:20",contact:"137****0099",status:"pending",pickup_code:"",claim_decision:"",claim_note:"",matched_item_id:null,created_at:offsetMin(-200)},
+        {id:"LF-MM55XY",item_type:"背包",color:"黑色",line:"3",station:"安吉站",lost_time:"今天 09:00",contact:"135****4321",status:"matched",pickup_code:"834921",claim_decision:"mine",claim_note:"包侧面有白色徽章，内有蓝色水杯",matched_item_id:102,created_at:offsetMin(-26)}
+      ],
+      items:[
+        {id:101,item_type:"行李箱",color:"银色",line:"4",station:"东盟商务区站",custodian:"李警官",description:"24寸银色拉杆箱，暂放客服储物间A2",found_time:"今天 08:50",status:"in_stock",matched_tracking_code_id:"",pickup_code:"",has_photo:false,photo:"",created_at:offsetMin(-40)},
+        {id:102,item_type:"背包",color:"黑色",line:"3",station:"安吉站",custodian:"王警官",description:"黑色双肩包，侧面白色徽章",found_time:"今天 09:12",status:"matched",matched_tracking_code_id:"LF-MM55XY",pickup_code:"834921",has_photo:true,photo:"",created_at:offsetMin(-24)}
+      ],
+      handovers:[
+        {id:"HD-77KQ9L",item_type:"钥匙",color:"一串（带蓝色挂件）",line:"2",station_picked:"万象城站",picked_at:"今天 09:20",handover_at_station_code:"万象城站客服中心",pickup_eta_at:"今天 10:00",contact:"136****8899",finder_anonymous:false,submission_mode:"real",reroute_count:0,status:"pending",matched_tracking_code_id:"",created_item_id:null,created_at:offsetMin(-18),history:[{t:offsetMin(-18),e:"乘客在大屏登记拾获，等待送到客服中心"}]},
+        {id:"HD-58QRM2",item_type:"雨伞",color:"蓝色长柄",line:"1",station_picked:"火车站",picked_at:"今天 07:55",handover_at_station_code:"火车站客服中心",pickup_eta_at:"今天 08:30",contact:"",finder_anonymous:true,submission_mode:"real",reroute_count:0,status:"confirmed_at_desk",matched_tracking_code_id:"",created_item_id:103,created_at:offsetMin(-60),history:[{t:offsetMin(-60),e:"乘客登记拾获（匿名）"},{t:offsetMin(-52),e:"客服凭上交码确认到手，已入失物台账"}]}
+      ]
+    };
+  }
+  function offsetMin(m){ var d=new Date(Date.now()+m*60000),p=function(n){return (n<10?"0":"")+n;}; return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes()); }
+
+  var state;
+  function load(){ try{ var s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.items&&s.reports) {state=s;return;} }catch(e){} state=seed(); save(); }
+  function save(){ try{ localStorage.setItem(KEY,JSON.stringify(state)); }catch(e){} }
+
+  var currentStatus="";
+
+  // ---------- 匹配 ----------
+  function colorHit(a,b){ a=String(a||""); b=String(b||""); if(!a||!b)return false; return a.indexOf(b)>=0 || b.indexOf(a)>=0; }
+  function autoMatch(item){
+    for(var i=0;i<state.reports.length;i++){
+      var r=state.reports[i];
+      if(r.status!=="pending") continue;
+      var typeOk = item.item_type===r.item_type;
+      var colorOk = colorHit(item.color,r.color);
+      var stationOk = item.station && r.station && item.station===r.station;
+      if(typeOk && (colorOk||stationOk)) return r;
+    }
+    return null;
+  }
+  function bindItemReport(item,report){
+    var pc=code6();
+    item.status="matched"; item.matched_tracking_code_id=report.id; item.pickup_code=pc;
+    report.status="matched"; report.matched_item_id=item.id; report.pickup_code=pc;
+  }
+  function unbind(item,reason){
+    var r=state.reports.find(function(x){return x.id===item.matched_tracking_code_id;});
+    if(r){ r.status="pending"; r.matched_item_id=null; r.pickup_code=""; r.claim_decision=""; if(reason)r.claim_note="已排除匹配："+reason; }
+    item.status="in_stock"; item.matched_tracking_code_id=""; item.pickup_code="";
+  }
+
+  // ---------- 渲染 ----------
+  function badge(map,key){ var m=map[key]||{label:key,color:"#888"}; return '<span class="badge" style="background:'+m.color+'">'+esc(m.label)+'</span>'; }
+
+  function renderPending(){
+    var rows=state.reports.filter(function(r){return r.status==="pending";});
+    var el=document.getElementById("lf-pending");
+    if(!rows.length){ el.innerHTML='<div class="empty">暂无待匹配追踪码</div>'; return; }
+    el.innerHTML='<table class="list"><thead><tr><th>追踪码</th><th>物品</th><th>站点</th><th>提交</th></tr></thead><tbody>'+
+      rows.map(function(p){return '<tr class="clickable" data-tcid="'+esc(p.id)+'"><td><span class="mono">'+esc(p.id)+'</span></td>'+
+        '<td>'+esc(p.item_type)+(p.color?' · '+esc(p.color):'')+'</td>'+
+        '<td>'+esc(p.station)+(p.line?' · '+esc(p.line)+'号线':'')+'</td><td>'+rel(p.created_at)+'</td></tr>';}).join("")+'</tbody></table>';
+    Array.prototype.forEach.call(el.querySelectorAll("tr[data-tcid]"),function(tr){
+      tr.onclick=function(){
+        var p=state.reports.find(function(x){return x.id===tr.dataset.tcid;}); if(!p)return;
+        var f=document.getElementById("lf-form");
+        if(p.item_type)f.elements.item_type.value=p.item_type;
+        if(p.color)f.elements.color.value=p.color;
+        if(p.line)f.elements.line.value=p.line;
+        if(p.station)f.elements.station.value=p.station;
+        toast("已回填表单："+p.id+"，补全保管信息后提交即可匹配","ok");
+      };
+    });
+  }
+
+  function photoBox(item){
+    if(item.photo){ return '<img class="photobox" src="'+item.photo+'" style="object-fit:cover" alt="实物照片"/>'; }
+    if(item.has_photo){ var colors=["#2147a3","#27ae60","#e67e22","#8e44ad","#16a085"]; var c=colors[item.id%colors.length];
+      return '<div class="photobox" style="background:linear-gradient(135deg,'+c+','+c+'cc)">'+esc(item.item_type)+'<small>入库实物（演示占位图）</small></div>'; }
+    return "";
+  }
+
+  function renderItems(){
+    var rows=state.items.filter(function(i){return !currentStatus||i.status===currentStatus;})
+      .sort(function(a,b){return (b.created_at||"").localeCompare(a.created_at||"");});
+    var el=document.getElementById("lf-list");
+    if(!rows.length){ el.innerHTML='<div class="empty">暂无</div>'; return; }
+    el.innerHTML='<table class="list"><thead><tr><th>ID</th><th>物品</th><th>站点</th><th>保管</th><th>状态</th><th>操作</th></tr></thead><tbody>'+
+      rows.map(function(i){
+        var claim="";
+        if(i.status==="matched"){
+          var r=state.reports.find(function(x){return x.id===i.matched_tracking_code_id;});
+          var d = r&&r.claim_decision==="mine" ? "乘客认为是本人失物" : r&&r.claim_decision==="not_mine" ? "乘客反馈不是本人失物" : "乘客尚未核对";
+          claim='<div class="claim">'+esc(d)+(r&&r.claim_note?'<br>'+esc(r.claim_note):'')+'</div>';
+        }
+        var ops = i.status==="matched"
+          ? '<button class="btn-sm primary" data-release="'+i.id+'">核销取件</button><button class="btn-sm danger" data-reject="'+i.id+'">排除此匹配</button>'+claim
+          : '<span class="muted">'+rel(i.created_at)+'</span>';
+        var photoBtn = i.has_photo||i.photo ? '<button class="btn-sm" data-photo="'+i.id+'">实物图</button>' : "";
+        return '<tr><td><span class="mono">#'+i.id+'</span></td>'+
+          '<td>'+esc(i.item_type)+(i.color?' · '+esc(i.color):'')+photoBtn+'</td>'+
+          '<td>'+esc(i.station)+(i.line?' · '+esc(i.line)+'号线':'')+'</td>'+
+          '<td>'+esc(i.custodian||"—")+'</td>'+
+          '<td>'+badge(ITEM_STATUS,i.status)+(i.matched_tracking_code_id?'<div style="margin-top:4px"><span class="mono" style="font-size:11px">→ '+esc(i.matched_tracking_code_id)+'</span></div>':'')+'</td>'+
+          '<td style="white-space:normal">'+ops+'</td></tr>';
+      }).join("")+'</tbody></table>';
+
+    Array.prototype.forEach.call(el.querySelectorAll("[data-photo]"),function(b){
+      b.onclick=function(){ var i=state.items.find(function(x){return x.id==b.dataset.photo;}); openDrawer("入库实物照片 · #"+i.id, photoBox(i)); };
+    });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-reject]"),function(b){
+      b.onclick=function(){
+        var reason=(prompt("请填写排除此匹配的复核原因（至少2字）：")||"").trim();
+        if(reason.length<2)return;
+        var i=state.items.find(function(x){return x.id==b.dataset.reject;});
+        unbind(i,reason); save(); refresh(); toast("已排除匹配，该物品回到在库，系统继续查找","ok");
+      };
+    });
+    Array.prototype.forEach.call(el.querySelectorAll("[data-release]"),function(b){
+      b.onclick=function(){
+        var i=state.items.find(function(x){return x.id==b.dataset.release;});
+        var code=(prompt("请先核对物品独有特征和领取人，再输入乘客出示的取件码（6位数字）：\n提示：本演示单 "+i.id+" 的取件码为 "+i.pickup_code)||"").trim();
+        if(!code)return;
+        if(code!==i.pickup_code){ toast("核销失败：取件码不正确","err"); return; }
+        i.status="claimed";
+        var r=state.reports.find(function(x){return x.id===i.matched_tracking_code_id;});
+        if(r)r.status="picked_up";
+        // 关联的上交单一并结案
+        state.handovers.forEach(function(h){ if(h.created_item_id===i.id&&h.status!=="cancelled"){ h.status="closed"; h.history.push({t:now(),e:"失主已现场核验领取，结案"}); } });
+        save(); refresh(); toast("核销成功，物品已发放给失主","ok");
+      };
+    });
+  }
+
+  function renderHandovers(){
+    var rows=state.handovers.filter(function(h){return h.status==="pending"||h.status==="confirmed_at_desk"||h.status==="matched";})
+      .sort(function(a,b){return (b.created_at||"").localeCompare(a.created_at||"");});
+    var el=document.getElementById("lf-handovers");
+    if(!rows.length){ el.innerHTML='<div class="empty">暂无待确认上交单</div>'; return; }
+    el.innerHTML='<table class="list"><thead><tr><th>上交码</th><th>物品</th><th>拾获站 → 上交站</th><th>匹配状态</th><th>提交</th><th style="text-align:right">操作</th></tr></thead><tbody>'+
+      rows.map(function(h){
+        var ops='<button class="btn-sm" data-hact="view" data-hid="'+esc(h.id)+'">详情</button>';
+        if(h.status==="pending") ops+='<button class="btn-sm primary" data-hact="confirm" data-hid="'+esc(h.id)+'">凭码确认</button><button class="btn-sm" data-hact="match" data-hid="'+esc(h.id)+'">手动绑定</button>';
+        if(h.status==="confirmed_at_desk") ops+='<button class="btn-sm" data-hact="match" data-hid="'+esc(h.id)+'">手动绑定</button>';
+        return '<tr><td><span class="mono">'+esc(h.id)+'</span></td>'+
+          '<td>'+esc(h.item_type)+(h.color?' · '+esc(h.color):'')+'</td>'+
+          '<td>'+esc(h.station_picked||"—")+' → <span class="mono" style="font-size:11px">'+esc(h.handover_at_station_code||"—")+'</span></td>'+
+          '<td>'+badge(HAND_STATUS,h.status)+(h.matched_tracking_code_id?'<div style="margin-top:4px"><span class="mono" style="font-size:11px">→ '+esc(h.matched_tracking_code_id)+'</span></div>':'')+'</td>'+
+          '<td>'+rel(h.created_at)+'</td><td style="text-align:right">'+ops+'</td></tr>';
+      }).join("")+'</tbody></table>';
+
+    Array.prototype.forEach.call(el.querySelectorAll("[data-hact]"),function(b){
+      b.onclick=function(){ handleHandover(b.dataset.hact,b.dataset.hid); };
+    });
+  }
+
+  function handleHandover(act,hid){
+    var h=state.handovers.find(function(x){return x.id===hid;}); if(!h)return;
+    if(act==="view"){
+      var kv=[
+        ["物品",(h.item_type||"")+(h.color?" · "+h.color:"")],
+        ["拾获站",h.station_picked],["拾获时间",h.picked_at],
+        ["上交客服",h.handover_at_station_code],["计划到达",h.pickup_eta_at||"—"],
+        ["改交次数",(h.reroute_count||0)+" / 2"],
+        ["用途",{real:"真实",experience:"体验",test:"测试"}[h.submission_mode]||h.submission_mode],
+        ["预留电话",h.finder_anonymous?"匿名（无联系方式）":(h.contact||"未预留")],
+        ["关联追踪码",h.matched_tracking_code_id||"—"],
+        ["入库台账",h.created_item_id?("#"+h.created_item_id):"尚未入库"],
+        ["最终领取",h.status==="closed"?"已由失主领取":"尚未领取"]
+      ];
+      openDrawer("上交单 · "+h.id, kvHTML(kv)+'<h4 style="margin:16px 0 8px">进度</h4>'+timelineHTML(h.history));
+      return;
+    }
+    if(act==="confirm"){
+      if(!confirm("确认 "+hid+" 物品已送到客服中心？将自动登记入失物台账并尝试匹配。"))return;
+      h.status="confirmed_at_desk";
+      // 自动入台账
+      state.seq+=1;
+      var item={id:state.seq,item_type:h.item_type,color:h.color,line:h.line||"",station:(h.station_picked||""),custodian:"客服中心（乘客上交）",description:"乘客拾获上交："+(h.handover_at_station_code||""),found_time:h.picked_at,status:"in_stock",matched_tracking_code_id:"",pickup_code:"",has_photo:false,photo:"",created_at:now()};
+      state.items.push(item); h.created_item_id=item.id;
+      h.history.push({t:now(),e:"客服凭上交码确认到手，已入失物台账 #"+item.id});
+      var m=autoMatch(item);
+      if(m){ bindItemReport(item,m); h.status="matched"; h.matched_tracking_code_id=m.id; h.history.push({t:now(),e:"自动命中追踪码 "+m.id+"，等待失主凭取件码领取"}); toast("已确认入库并自动命中 "+m.id+"（取件码 "+item.pickup_code+"）","ok"); }
+      else toast("已确认到手并入台账（暂无匹配）","ok");
+      save(); refresh();
+      return;
+    }
+    if(act==="match"){
+      var tcid=(prompt("输入要绑定的失物追踪码（LF-XXXXXX）：","")||"").trim().toUpperCase();
+      if(!tcid)return;
+      var rpt=state.reports.find(function(x){return x.id.toUpperCase()===tcid;});
+      if(!rpt){ toast("未找到该追踪码","err"); return; }
+      if(rpt.status==="picked_up"||rpt.status==="closed"){ toast("该追踪码已结案，无法绑定","err"); return; }
+      var target = h.created_item_id ? state.items.find(function(x){return x.id===h.created_item_id;}) : null;
+      if(!target){ // 尚未确认入库，先建条目
+        state.seq+=1;
+        target={id:state.seq,item_type:h.item_type,color:h.color,line:h.line||"",station:h.station_picked,custodian:"客服中心（乘客上交）",description:"手动绑定入库",found_time:h.picked_at,status:"in_stock",matched_tracking_code_id:"",pickup_code:"",has_photo:false,photo:"",created_at:now()};
+        state.items.push(target); h.created_item_id=target.id; h.status="confirmed_at_desk";
+      }
+      if(target.status==="matched"&&target.matched_tracking_code_id!==rpt.id){ toast("该物品已绑定其他追踪码","err"); return; }
+      bindItemReport(target,rpt);
+      h.status="matched"; h.matched_tracking_code_id=rpt.id;
+      h.history.push({t:now(),e:"民警手动绑定追踪码 "+rpt.id+"（取件码 "+target.pickup_code+"）"});
+      save(); refresh(); toast("已绑定 "+rpt.id+"，取件码 "+target.pickup_code,"ok");
+    }
+  }
+
+  // ---------- 表单 ----------
+  function mountForm(){
+    var f=document.getElementById("lf-form");
+    f.onsubmit=function(e){
+      e.preventDefault();
+      var body={
+        item_type:f.elements.item_type.value.trim(),
+        color:f.elements.color.value.trim(),
+        line:f.elements.line.value.trim(),
+        station:f.elements.station.value.trim(),
+        found_time:f.elements.found_time.value.trim(),
+        description:f.elements.description.value.trim(),
+        custodian:(f.elements.custodian.value.trim()||"王警官")
+      };
+      if(!body.item_type||!body.station){ toast("请填写物品类型和站点","err"); return; }
+      state.seq+=1;
+      var item={id:state.seq,item_type:body.item_type,color:body.color,line:body.line,station:body.station,custodian:body.custodian,description:body.description,found_time:body.found_time||now(),status:"in_stock",matched_tracking_code_id:"",pickup_code:"",has_photo:false,photo:"",created_at:now()};
+      var pf=f.elements.photo.files[0];
+      if(pf){
+        var rd=new FileReader();
+        rd.onload=function(){ try{ item.photo=String(rd.result).slice(0,180000); item.has_photo=true; }catch(_){} finishCreate(item,f); };
+        rd.readAsDataURL(pf);
+      } else { finishCreate(item,f); }
+    };
+  }
+  function finishCreate(item,f){
+    state.items.push(item);
+    var m=autoMatch(item);
+    if(m){ bindItemReport(item,m); save(); refresh(); toast("已录入并命中追踪码 "+m.id+"，取件码 "+item.pickup_code,"ok"); }
+    else { save(); refresh(); toast("已录入台账（暂无匹配）","ok"); }
+    f.reset();
+  }
+
+  // ---------- drawer / toast / 工具 ----------
+  function kvHTML(rows){ return '<div class="kv">'+rows.map(function(r){return '<div class="k">'+esc(r[0])+'</div><div>'+esc(r[1]||"")+'</div>';}).join("")+'</div>'; }
+  function timelineHTML(history){ if(!history||!history.length)return '<div class="muted">无记录</div>'; return '<div class="tl">'+history.map(function(h){return '<div class="t">'+esc(h.e)+'<time>'+esc(rel(h.t))+'</time></div>';}).join("")+'</div>'; }
+  function openDrawer(title,html){ document.getElementById("drawerTitle").textContent=title; document.getElementById("drawerBody").innerHTML=html; document.getElementById("mask").classList.add("show"); document.getElementById("drawer").classList.add("show"); }
+  function closeDrawer(){ document.getElementById("mask").classList.remove("show"); document.getElementById("drawer").classList.remove("show"); }
+  var t;
+  function toast(msg,type){ var el=document.getElementById("toast"); el.textContent=msg; el.className="toast show "+(type||""); clearTimeout(t); t=setTimeout(function(){el.className="toast";},2800); }
+
+  function refresh(){ renderPending(); renderItems(); renderHandovers(); }
+
+  // ---------- 初始化 ----------
+  load();
+  mountForm();
+  refresh();
+  document.getElementById("lf-chips").addEventListener("click",function(e){
+    var c=e.target.closest(".chip"); if(!c)return;
+    currentStatus=c.dataset.lfstatus;
+    Array.prototype.forEach.call(this.querySelectorAll(".chip"),function(x){x.classList.remove("active");});
+    c.classList.add("active"); renderItems();
+  });
+  document.getElementById("resetBtn").onclick=function(){ if(confirm("恢复为初始演示数据？当前操作记录将被清空。")){ localStorage.removeItem(KEY); load(); refresh(); toast("已重置演示数据","ok"); } };
+  document.getElementById("mask").onclick=closeDrawer;
+  document.getElementById("drawerClose").onclick=closeDrawer;
+})();
+</script>
+</body>
+</html>
