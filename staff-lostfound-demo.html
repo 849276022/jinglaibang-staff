@@ -21,6 +21,7 @@
   header button{background:rgba(255,255,255,.16);color:#fff;border:1px solid rgba(255,255,255,.3);padding:6px 12px;border-radius:7px;cursor:pointer;font-size:12px}
   header button:hover{background:rgba(255,255,255,.28)}
   .wrap{padding:18px 22px;max-width:1500px;margin:0 auto}
+  .section0{margin-bottom:16px;border-left:4px solid var(--orange)}
   .grid3{display:grid;grid-template-columns:1fr 1fr 1.25fr;gap:16px}
   @media(max-width:1100px){.grid3{grid-template-columns:1fr}}
   .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:15px 16px;box-shadow:0 1px 3px rgba(20,40,90,.05)}
@@ -90,6 +91,15 @@
 </header>
 
 <div class="wrap">
+  <!-- ⓪ 待登记丢失询问（群众端语音采集，民警核对建档） -->
+  <div class="card section0">
+    <div class="card-title">
+      <span>待登记 · 丢失询问</span>
+      <span class="hint">群众在语音大屏询问后采集的信息，核对无误点「登记建档」生成正式 LF 工单</span>
+    </div>
+    <div id="lf-inquiries"><div class="empty">加载中…</div></div>
+  </div>
+
   <div class="grid3">
     <!-- ① 待匹配追踪码 -->
     <div class="card">
@@ -176,9 +186,13 @@
   function seed(){
     return {
       seq: 103,
+      inquiries:[
+        {id:"INQ-20260917-004",item_type:"钥匙",color:"带蓝色卡通挂件",line:"2",station:"万象城站",lost_time:"今天 09:30 左右",contact:"136****8899",source:"语音大屏",note:"一串约5把钥匙，有门禁卡",status:"waiting",created_at:offsetMin(-6)},
+        {id:"INQ-20260917-003",item_type:"钱包",color:"红色长款",line:"1",station:"火车站",lost_time:"今天 07:40",contact:"138****6677",source:"语音大屏",note:"内有身份证、几张银行卡，急用",status:"waiting",created_at:offsetMin(-12)},
+        {id:"INQ-20260917-002",item_type:"手机",color:"银色 iPhone",line:"",station:"安吉站",lost_time:"今天早上",contact:"未留电话",source:"语音大屏",note:"来电称手机快没电，信息不全",status:"incomplete",created_at:offsetMin(-30)}
+      ],
       reports:[
         {id:"LF-QT39RR",item_type:"手机",color:"黑色",line:"2",station:"万象城站",lost_time:"今天 08:10",contact:"139****2211",status:"pending",pickup_code:"",claim_decision:"",claim_note:"",matched_item_id:null,created_at:offsetMin(-35)},
-        {id:"LF-AA10K2",item_type:"钱包",color:"红色",line:"1",station:"火车站",lost_time:"今天 07:40",contact:"138****6677",status:"pending",pickup_code:"",claim_decision:"",claim_note:"",matched_item_id:null,created_at:offsetMin(-80)},
         {id:"LF-BN77UA",item_type:"文件袋",color:"牛皮纸袋",line:"4",station:"东盟商务区站",lost_time:"昨天 18:20",contact:"137****0099",status:"pending",pickup_code:"",claim_decision:"",claim_note:"",matched_item_id:null,created_at:offsetMin(-200)},
         {id:"LF-MM55XY",item_type:"背包",color:"黑色",line:"3",station:"安吉站",lost_time:"今天 09:00",contact:"135****4321",status:"matched",pickup_code:"834921",claim_decision:"mine",claim_note:"包侧面有白色徽章，内有蓝色水杯",matched_item_id:102,created_at:offsetMin(-26)}
       ],
@@ -226,6 +240,59 @@
 
   // ---------- 渲染 ----------
   function badge(map,key){ var m=map[key]||{label:key,color:"#888"}; return '<span class="badge" style="background:'+m.color+'">'+esc(m.label)+'</span>'; }
+
+  var INQ_STATUS={waiting:{label:"待登记",color:"#e67e22"},incomplete:{label:"信息不全",color:"#c0392b"},registered:{label:"已建档",color:"#27ae60"}};
+
+  function renderInquiries(){
+    var rows=state.inquiries.filter(function(q){return q.status==="waiting"||q.status==="incomplete";});
+    var el=document.getElementById("lf-inquiries");
+    if(!rows.length){ el.innerHTML='<div class="empty">暂无待登记丢失询问</div>'; return; }
+    el.innerHTML='<table class="list"><thead><tr><th>询问编号</th><th>物品</th><th>线路·站点</th><th>遗失时间</th><th>联系电话</th><th>来源</th><th>状态</th><th style="text-align:right">操作</th></tr></thead><tbody>'+
+      rows.map(function(q){
+        var ops='<button class="btn-sm" data-iq="view" data-iid="'+esc(q.id)+'">查看</button>';
+        if(q.status==="waiting") ops+='<button class="btn-sm primary" data-iq="register" data-iid="'+esc(q.id)+'">登记建档</button>';
+        else ops+='<button class="btn-sm primary" data-iq="register" data-iid="'+esc(q.id)+'">补全并建档</button>';
+        ops+='<button class="btn-sm danger" data-iq="reject" data-iid="'+esc(q.id)+'">退回</button>';
+        return '<tr><td><span class="mono">'+esc(q.id)+'</span></td>'+
+          '<td>'+esc(q.item_type)+(q.color?' · '+esc(q.color):'')+'</td>'+
+          '<td>'+(q.line?esc(q.line)+'号线 · ':'')+esc(q.station)+'</td>'+
+          '<td>'+esc(q.lost_time)+'</td><td>'+esc(q.contact)+'</td>'+
+          '<td class="muted">'+esc(q.source)+'</td>'+
+          '<td>'+badge(INQ_STATUS,q.status)+'</td>'+
+          '<td style="text-align:right;white-space:nowrap">'+ops+'</td></tr>';
+      }).join("")+'</tbody></table>';
+    Array.prototype.forEach.call(el.querySelectorAll("[data-iq]"),function(b){
+      b.onclick=function(){ handleInquiry(b.dataset.iq,b.dataset.iid); };
+    });
+  }
+
+  function handleInquiry(act,iid){
+    var q=state.inquiries.find(function(x){return x.id===iid;}); if(!q)return;
+    if(act==="view"){
+      var kv=[
+        ["询问编号",q.id],["物品类型",q.item_type],["颜色/特征",q.color||"—"],
+        ["线路",q.line?q.line+"号线":"—"],["遗失站点",q.station],["遗失时间",q.lost_time],
+        ["联系电话",q.contact],["来源渠道",q.source],
+        ["当前状态",(INQ_STATUS[q.status]||{}).label||q.status],["提交时间",rel(q.created_at)+" 前"]
+      ];
+      openDrawer("丢失询问 · "+q.id, kvHTML(kv)+'<h4 style="margin:16px 0 8px">群众描述</h4><div style="font-size:13px;line-height:1.7">'+esc(q.note||"（无补充描述）")+'</div>');
+      return;
+    }
+    if(act==="register"){
+      if(!confirm("核对无误？将把丢失询问 "+iid+" 登记为正式 LF 工单，进入待匹配。"))return;
+      var lf=rid("LF");
+      state.reports.push({id:lf,item_type:q.item_type,color:q.color,line:q.line||"",station:q.station,lost_time:q.lost_time,contact:q.contact,status:"pending",pickup_code:"",claim_decision:"",claim_note:"（由询问"+iid+"建档）"+(q.note||""),matched_item_id:null,created_at:now()});
+      q.status="registered"; q.registered_lf=lf;
+      save(); refresh(); toast("已登记建档："+lf+"，进入待匹配","ok");
+      return;
+    }
+    if(act==="reject"){
+      var reason=(prompt("退回原因（将通知群众补充信息，至少2字）：")||"").trim();
+      if(reason.length<2)return;
+      state.inquiries=state.inquiries.filter(function(x){return x.id!==iid;});
+      save(); refresh(); toast("已退回该询问："+reason,"ok");
+    }
+  }
 
   function renderPending(){
     var rows=state.reports.filter(function(r){return r.status==="pending";});
@@ -421,7 +488,7 @@
   var t;
   function toast(msg,type){ var el=document.getElementById("toast"); el.textContent=msg; el.className="toast show "+(type||""); clearTimeout(t); t=setTimeout(function(){el.className="toast";},2800); }
 
-  function refresh(){ renderPending(); renderItems(); renderHandovers(); }
+  function refresh(){ renderInquiries(); renderPending(); renderItems(); renderHandovers(); }
 
   // ---------- 初始化 ----------
   load();
