@@ -111,7 +111,7 @@
     <!-- ② 录入捡获失物 -->
     <div class="card">
       <div class="card-title">录入捡获失物</div>
-      <div class="card-sub">提交即自动反向匹配 pending 追踪码</div>
+      <div class="card-sub">提交即自动反向匹配乘客工单；领取地点按「站点 + 警务室」自动确定</div>
       <form id="lf-form" class="fg">
         <label class="full"><div class="lab">物品类型 *</div>
           <select name="item_type" required>
@@ -121,15 +121,21 @@
             <option>雨伞</option><option>其它</option>
           </select>
         </label>
-        <label><div class="lab">颜色 / 特征</div><input name="color" placeholder="例如：黑色背包"/></label>
+        <label><div class="lab">颜色 / 特征</div><input name="color" placeholder="例如：黑色"/></label>
         <label><div class="lab">线路</div>
           <select name="line"><option value="">无</option><option>1</option><option>2</option><option>3</option><option>4</option><option>5</option></select>
         </label>
-        <label><div class="lab">站点 *</div><input name="station" required placeholder="例如：安吉站"/></label>
-        <label><div class="lab">捡获时间</div><input name="found_time" placeholder="例如：今天 08:30"/></label>
-        <label class="full"><div class="lab">描述</div><textarea name="description" placeholder="拾获地点细节、保管位置、独有特征"></textarea></label>
-        <label class="full"><div class="lab">保管民警 / 客服</div><input name="custodian" placeholder="例如：安吉站客服中心 王警官"/></label>
-        <label class="full"><div class="lab">实物照片（可选 · 便于以图识图）</div><input name="photo" type="file" accept="image/*"/></label>
+        <label class="full"><div class="lab">站点 * <span class="hint">输入关键字选择</span></div>
+          <input name="station" list="station-dir" required placeholder="输入关键字选择，如：安吉" autocomplete="off"/>
+          <datalist id="station-dir"></datalist>
+        </label>
+        <label><div class="lab">捡获时间</div><input name="found_time" placeholder="例如：2026-09-17 08:30"/></label>
+        <label><div class="lab">捡获时刻 <span class="hint">时间窗匹配</span></div><input name="found_at" type="datetime-local"/></label>
+        <label class="full"><div class="lab">拾获具体位置</div><textarea name="found_place" placeholder="例如：3号口安检机旁、2号车厢中部座椅下"></textarea></label>
+        <label class="full"><div class="lab">描述 <span class="hint">物品属性、样式、外观特征</span></div><textarea name="description" placeholder="例如：黑色双肩包，正面有白色卡通挂件，内有一台银色笔记本"></textarea></label>
+        <label class="full"><div class="lab">保管民警 / 客服</div><input name="custodian" placeholder="例如：安吉站警务室 王警官"/></label>
+        <div class="full" id="pickup-hint" style="display:none;font-size:12px;color:#1e7e4f;background:#eef8f2;border:1px solid #bfe6d0;border-radius:7px;padding:7px 10px"></div>
+        <label class="full"><div class="lab">实物照片 <span class="hint">建议上传 · 支持以图识图</span></div><input name="photo" type="file" accept="image/*"/></label>
         <div class="full"><button class="btn-primary" type="submit">提交 + 自动匹配</button></div>
       </form>
     </div>
@@ -207,6 +213,23 @@
     };
   }
   function offsetMin(m){ var d=new Date(Date.now()+m*60000),p=function(n){return (n<10?"0":"")+n;}; return d.getFullYear()+"-"+p(d.getMonth()+1)+"-"+p(d.getDate())+" "+p(d.getHours())+":"+p(d.getMinutes()); }
+
+  // 站点目录（演示数据；生产由 /stations 接口下发，含站点编码与对应警务室）
+  var STATIONS=[
+    {name:"安吉站",line:"3",office:"安吉站警务室"},
+    {name:"万象城站",line:"2",office:"万象城站警务室"},
+    {name:"火车站",line:"1",office:"火车站警务室"},
+    {name:"金湖广场站",line:"1",office:"金湖广场站警务室"},
+    {name:"东盟商务区站",line:"4",office:"东盟商务区站警务室"},
+    {name:"朝阳广场站",line:"1",office:"朝阳广场站警务室"},
+    {name:"埌东客运站",line:"1",office:"埌东客运站警务室"},
+    {name:"西乡塘站",line:"1",office:"西乡塘站警务室"}
+  ];
+  function stationOffice(name){
+    name=String(name||"").replace(/站$/,"");
+    var hit=STATIONS.find(function(s){return s.name===name+"站"||s.name.indexOf(name)>=0;});
+    return hit?hit.office:(name?name+"站警务室":"");
+  }
 
   var state;
   function load(){ try{ var s=JSON.parse(localStorage.getItem(KEY)); if(s&&s.items&&s.reports) {state=s;return;} }catch(e){} state=seed(); save(); }
@@ -342,7 +365,7 @@
         return '<tr><td><span class="mono">#'+i.id+'</span></td>'+
           '<td>'+esc(i.item_type)+(i.color?' · '+esc(i.color):'')+photoBtn+'</td>'+
           '<td>'+esc(i.station)+(i.line?' · '+esc(i.line)+'号线':'')+'</td>'+
-          '<td>'+esc(i.custodian||"—")+'</td>'+
+          '<td>'+esc(i.custodian||"—")+(i.pickup_office?'<div class="claim">领：'+esc(i.pickup_office)+'</div>':'')+'</td>'+
           '<td>'+badge(ITEM_STATUS,i.status)+(i.matched_tracking_code_id?'<div style="margin-top:4px"><span class="mono" style="font-size:11px">→ '+esc(i.matched_tracking_code_id)+'</span></div>':'')+'</td>'+
           '<td style="white-space:normal">'+ops+'</td></tr>';
       }).join("")+'</tbody></table>';
@@ -418,7 +441,7 @@
       h.status="confirmed_at_desk";
       // 自动入台账
       state.seq+=1;
-      var item={id:state.seq,item_type:h.item_type,color:h.color,line:h.line||"",station:(h.station_picked||""),custodian:"客服中心（乘客上交）",description:"乘客拾获上交："+(h.handover_at_station_code||""),found_time:h.picked_at,status:"in_stock",matched_tracking_code_id:"",pickup_code:"",has_photo:false,photo:"",created_at:now()};
+      var item={id:state.seq,item_type:h.item_type,color:h.color,line:h.line||"",station:(h.station_picked||""),custodian:"客服中心（乘客上交）",description:"乘客拾获上交："+(h.handover_at_station_code||""),pickup_office:stationOffice(h.station_picked),found_time:h.picked_at,status:"in_stock",matched_tracking_code_id:"",pickup_code:"",has_photo:false,photo:"",created_at:now()};
       state.items.push(item); h.created_item_id=item.id;
       h.history.push({t:now(),e:"客服凭上交码确认到手，已入失物台账 #"+item.id});
       var m=autoMatch(item);
@@ -436,7 +459,7 @@
       var target = h.created_item_id ? state.items.find(function(x){return x.id===h.created_item_id;}) : null;
       if(!target){ // 尚未确认入库，先建条目
         state.seq+=1;
-        target={id:state.seq,item_type:h.item_type,color:h.color,line:h.line||"",station:h.station_picked,custodian:"客服中心（乘客上交）",description:"手动绑定入库",found_time:h.picked_at,status:"in_stock",matched_tracking_code_id:"",pickup_code:"",has_photo:false,photo:"",created_at:now()};
+        target={id:state.seq,item_type:h.item_type,color:h.color,line:h.line||"",station:h.station_picked,custodian:"客服中心（乘客上交）",description:"手动绑定入库",pickup_office:stationOffice(h.station_picked),found_time:h.picked_at,status:"in_stock",matched_tracking_code_id:"",pickup_code:"",has_photo:false,photo:"",created_at:now()};
         state.items.push(target); h.created_item_id=target.id; h.status="confirmed_at_desk";
       }
       if(target.status==="matched"&&target.matched_tracking_code_id!==rpt.id){ toast("该物品已绑定其他追踪码","err"); return; }
@@ -450,6 +473,20 @@
   // ---------- 表单 ----------
   function mountForm(){
     var f=document.getElementById("lf-form");
+    // 填充站点目录
+    var dl=document.getElementById("station-dir");
+    dl.innerHTML=STATIONS.map(function(s){return '<option value="'+esc(s.name)+'">'+esc(s.line)+'号线 · '+esc(s.office)+'</option>';}).join("");
+    // 选择站点 → 自动带出线路 + 提示领取警务室
+    f.elements.station.addEventListener("input",function(){
+      var name=this.value.trim();
+      var hit=STATIONS.find(function(s){return s.name===name;});
+      var hint=document.getElementById("pickup-hint");
+      if(hit){
+        if(!f.elements.line.value)f.elements.line.value=hit.line;
+        hint.style.display="block";
+        hint.textContent="失主领取地点将自动确定为："+hit.office;
+      } else { hint.style.display="none"; }
+    });
     f.onsubmit=function(e){
       e.preventDefault();
       var body={
@@ -458,12 +495,24 @@
         line:f.elements.line.value.trim(),
         station:f.elements.station.value.trim(),
         found_time:f.elements.found_time.value.trim(),
+        found_at:f.elements.found_at.value,
+        found_place:f.elements.found_place.value.trim(),
         description:f.elements.description.value.trim(),
-        custodian:(f.elements.custodian.value.trim()||"王警官")
+        custodian:f.elements.custodian.value.trim()
       };
-      if(!body.item_type||!body.station){ toast("请填写物品类型和站点","err"); return; }
+      if(!body.item_type){ toast("请选择物品类型","err"); return; }
+      if(!body.station){ toast("请选择站点","err"); return; }
+      var office=stationOffice(body.station);
       state.seq+=1;
-      var item={id:state.seq,item_type:body.item_type,color:body.color,line:body.line,station:body.station,custodian:body.custodian,description:body.description,found_time:body.found_time||now(),status:"in_stock",matched_tracking_code_id:"",pickup_code:"",has_photo:false,photo:"",created_at:now()};
+      var descParts=[];
+      if(body.found_place)descParts.push("拾获位置："+body.found_place);
+      if(body.description)descParts.push(body.description);
+      var item={id:state.seq,item_type:body.item_type,color:body.color,line:body.line,station:body.station,
+        custodian:body.custodian||(office+" 值班民警"),
+        description:descParts.join("；"),
+        found_place:body.found_place,found_at:body.found_at,
+        pickup_office:office,
+        found_time:body.found_time||now(),status:"in_stock",matched_tracking_code_id:"",pickup_code:"",has_photo:false,photo:"",created_at:now()};
       var pf=f.elements.photo.files[0];
       if(pf){
         var rd=new FileReader();
@@ -475,9 +524,10 @@
   function finishCreate(item,f){
     state.items.push(item);
     var m=autoMatch(item);
-    if(m){ bindItemReport(item,m); save(); refresh(); toast("已录入并命中追踪码 "+m.id+"，取件码 "+item.pickup_code,"ok"); }
-    else { save(); refresh(); toast("已录入台账（暂无匹配）","ok"); }
+    if(m){ bindItemReport(item,m); save(); refresh(); toast("已录入并命中追踪码 "+m.id+"，取件码 "+item.pickup_code+"，领取点："+(item.pickup_office||"站点警务室"),"ok"); }
+    else { save(); refresh(); toast("已录入台账（暂无匹配），领取点："+(item.pickup_office||"站点警务室"),"ok"); }
     f.reset();
+    document.getElementById("pickup-hint").style.display="none";
   }
 
   // ---------- drawer / toast / 工具 ----------
