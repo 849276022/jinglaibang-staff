@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>警来帮 · 失物招领工作台</title>
+<style>
+:root{--blue:#1a56db;--blue-d:#1040a8;--bg:#0f1f3d;--green:#0e9f6e;--red:#dc2626;--ink:#1f2937;--muted:#6b7280;--line:#e5e7eb}
+*{box-sizing:border-box}
+body{margin:0;font-family:"PingFang SC","Microsoft YaHei",system-ui,sans-serif;color:var(--ink);background:linear-gradient(160deg,#0f1f3d,#1a3a6e 55%,#0f1f3d);background-attachment:fixed;min-height:100vh}
+.wrap{max-width:860px;margin:0 auto;padding:20px 16px 50px}
+header{color:#fff;text-align:center;padding:8px 0 18px}
+header .logo{font-size:28px;font-weight:800;letter-spacing:2px}
+header .sub{opacity:.85;font-size:13px;margin-top:6px}
+.card{background:#fff;border-radius:16px;padding:22px;margin-bottom:16px;box-shadow:0 12px 30px rgba(0,0,0,.2)}
+h2{font-size:18px;margin:0 0 14px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 14px}
+label{display:block;font-size:13px;font-weight:600;margin:12px 0 5px}
+input,textarea,select{width:100%;padding:11px 12px;border:1.5px solid #d1d5db;border-radius:10px;font-size:15px;font-family:inherit}
+input:focus,textarea:focus{outline:none;border-color:var(--blue)}
+textarea{resize:vertical;min-height:56px}
+button{font-family:inherit;border:none;border-radius:11px;font-size:16px;font-weight:600;padding:13px;cursor:pointer}
+.btn-primary{background:var(--blue);color:#fff;width:100%;margin-top:18px}
+.btn-primary:active{background:var(--blue-d)}
+.item{border:1.5px solid var(--line);border-radius:12px;padding:14px;margin-bottom:10px}
+.item .top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+.item .nm{font-weight:700;font-size:16px}
+.item .cd{font-size:24px;font-weight:800;letter-spacing:4px;color:var(--blue);font-family:"Courier New",monospace}
+.item .meta{font-size:13px;color:var(--muted);margin-top:6px;line-height:1.7}
+.tag{font-size:11px;padding:3px 9px;border-radius:20px;font-weight:700}
+.tag.stored{background:#dbeafe;color:#1e40af}
+.tag.claimed{background:#dcfce7;color:#166534}
+.rowbtn{display:flex;gap:8px;margin-top:10px}
+.btn-claim{background:var(--green);color:#fff;font-size:14px;padding:9px 16px;flex:0 0 auto}
+.btn-claim:disabled{background:#9ca3af}
+.toast{border-radius:10px;padding:12px 14px;margin-bottom:12px;font-size:14px;display:none}
+.toast.ok{background:#ecfdf5;color:#065f46;border:1.5px solid #a7f3d0}
+.toast.err{background:#fef2f2;color:#991b1b;border:1.5px solid #fecaca}
+.muted{color:var(--muted);font-size:12px}
+.refresh{font-size:14px;color:var(--blue);background:none;padding:0;float:right;font-weight:600}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="logo">警来帮 · 失物招领工作台</div>
+    <div class="sub">辅警登记建档 / 凭码核销取件</div>
+  </header>
+
+  <div id="toast" class="toast"></div>
+
+  <div class="card">
+    <h2>拾获物品登记建档</h2>
+    <form id="form">
+      <div class="grid2">
+        <div><label>物品名称 *</label><input name="item_name" required placeholder="如：黑色双肩包"></div>
+        <div><label>类别</label>
+          <select name="category">
+            <option value="">请选择</option>
+            <option>箱包</option><option>证件</option><option>钥匙</option><option>手机/电子设备</option>
+            <option>钱包/卡片</option><option>衣物</option><option>首饰</option><option>雨伞</option><option>其他</option>
+          </select>
+        </div>
+        <div><label>颜色</label><input name="color" placeholder="如：黑色"></div>
+        <div><label>捡获时间</label><input name="found_time" type="datetime-local"></div>
+        <div style="grid-column:1/3"><label>拾获具体位置</label><input name="found_location" placeholder="如：福建园地铁站A口"></div>
+        <div style="grid-column:1/3"><label>特征描述（物品属性、样式、外观）</label><textarea name="features" placeholder="如：内有笔记本电脑和充电器"></textarea></div>
+        <div><label>保管民警 / 客服</label><input name="keeper" placeholder="姓名"></div>
+        <div><label>存放位置 / 柜号</label><input name="locker" placeholder="如：A区03柜"></div>
+      </div>
+      <button class="btn-primary" type="submit">提交建档</button>
+    </form>
+  </div>
+
+  <div class="card">
+    <h2>物品台账 <button type="button" class="refresh" onclick="load()">刷新</button></h2>
+    <div id="list"><p class="muted">加载中…</p></div>
+  </div>
+</div>
+
+<script>
+// API 地址：部署后同域 /api，本地可改
+const API = (location.hostname.endsWith("workers.dev") || location.protocol==="http:" && location.hostname.includes("localhost"))
+  ? location.origin : "https://jinglaibang-api.849276022.workers.dev";
+
+function toast(msg, ok){
+  const t=document.getElementById("toast");
+  t.textContent=msg; t.className="toast "+(ok?"ok":"err"); t.style.display="block";
+  setTimeout(()=>t.style.display="none",3500);
+}
+
+async function api(path, opts){
+  const r = await fetch(API+path, opts);
+  if(!r.ok){ let e=""; try{e=(await r.json()).error}catch{}; throw new Error(e||r.status); }
+  return r.json();
+}
+
+document.getElementById("form").addEventListener("submit", async e=>{
+  e.preventDefault();
+  const fd = Object.fromEntries(new FormData(e.target).entries());
+  try{
+    const r = await api("/api/admin/items",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(fd)});
+    toast("建档成功！查询/取件码："+r.code, true);
+    e.target.reset(); load();
+  }catch(err){ toast("提交失败："+err.message, false); }
+});
+
+const esc = s => (s==null?"":String(s)).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+
+async function load(){
+  const box=document.getElementById("list");
+  try{
+    const {items}=await api("/api/admin/items");
+    if(!items.length){ box.innerHTML='<p class="muted">暂无登记</p>'; return; }
+    box.innerHTML=items.map(it=>`
+      <div class="item">
+        <div class="top">
+          <div><div class="nm">${esc(it.item_name)} <span class="tag ${it.status}">${it.status==="claimed"?"已认领":"待取"}</span></div></div>
+          <div class="cd">${esc(it.code)}</div>
+        </div>
+        <div class="meta">
+          ${it.category?esc(it.category)+" · ":""}${it.color?esc(it.color):""}<br>
+          ${it.found_location?"📍 "+esc(it.found_location):""} ${it.found_time?"· "+esc(it.found_time):""}<br>
+          ${it.features?esc(it.features):""}
+          ${it.locker?"<br>存放："+esc(it.locker):""} ${it.keeper?"· 保管："+esc(it.keeper):""}
+        </div>
+        ${it.status!=="claimed"?`<div class="rowbtn"><button class="btn-claim" onclick="claim(${it.id},this)">凭码核销取件</button></div>`:""}
+      </div>`).join("");
+  }catch(err){ box.innerHTML='<p class="muted">加载失败：'+esc(err.message)+'</p>'; }
+}
+
+async function claim(id,btn){
+  btn.disabled=true;
+  try{ await api("/api/admin/items/"+id+"/claim",{method:"POST"}); toast("已核销取件",true); load(); }
+  catch(err){ toast("核销失败："+err.message,false); btn.disabled=false; }
+}
+
+load();
+</script>
+</body>
+</html>
