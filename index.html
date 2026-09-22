@@ -80,8 +80,7 @@ button{font-family:inherit;border:none;border-radius:11px;font-size:16px;font-we
 
 <script>
 // API 地址：部署后同域 /api，本地可改
-const API = (location.hostname.endsWith("workers.dev") || location.protocol==="http:" && location.hostname.includes("localhost"))
-  ? location.origin : "https://jinglaibang-api.849276022.workers.dev";
+const API = ""; // 同域 Pages Functions
 
 function toast(msg, ok){
   const t=document.getElementById("toast");
